@@ -1,0 +1,102 @@
+# Weekly upstream sync — measures divergence from narisolutions/medusa-pos and
+# opens a sync PR every Monday 06:00 America/Sao_Paulo (BR is UTC-3 year-round,
+# no DST since 2019, hence "0 9 * * 1" in UTC). PR-only by design: nothing lands
+# on main automatically; a human reads the delta in the PR and merges manually
+# (upstream strategy in the workspace AGENTS.md).
+
+name: Upstream sync
+
+on:
+  schedule:
+    - cron: "0 9 * * 1"
+  workflow_dispatch:
+
+concurrency:
+  group: upstream-sync
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Checkout (full history for the delta diff)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: main
+
+      - name: Configure git identity
+        run: |
+          git config user.name "voolubot"
+          git config user.email "voolubot@users.noreply.github.com"
+
+      - name: Fetch upstream
+        run: |
+          git remote add upstream https://github.com/narisolutions/medusa-pos.git
+          git fetch upstream main
+
+      - name: Measure divergence (fail loudly when not a fast-forward)
+        id: meas
+        run: |
+          behind=$(git rev-list --count origin/main..upstream/main)
+          ours=$(git rev-list --count upstream/main..origin/main)
+          echo "behind=$behind ours=$ours"
+          if [ "$ours" -gt 0 ]; then
+            echo "::error::main has $ours own commits — fast-forward sync no longer possible, resolve manually (upstream strategy step: PR + classified delta review)"
+            exit 1
+          fi
+          echo "behind=$behind" >> "$GITHUB_OUTPUT"
+
+      - name: Skip when already in sync
+        if: steps.meas.outputs.behind == '0'
+        run: echo "already in sync with upstream — nothing to do"
+
+      - name: Create the sync branch
+        id: br
+        if: steps.meas.outputs.behind != '' && steps.meas.outputs.behind != '0'
+        run: |
+          date_key=$(date +%Y-%m-%d)
+          branch="chore/sync-upstream-main-$date_key"
+          git branch "$branch" upstream/main
+          git push origin "$branch"
+          echo "branch=$branch" >> "$GITHUB_OUTPUT"
+
+      - name: Open the sync PR (merge stays manual)
+        if: steps.br.outputs.branch != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BRANCH: ${{ steps.br.outputs.branch }}
+          BEHIND: ${{ steps.meas.outputs.behind }}
+        run: |
+          existing=$(gh pr list --head "$BRANCH" --state open --json number -q '.[0].number // empty')
+          if [ -n "$existing" ]; then
+            echo "sync PR #$existing already open for $BRANCH — nothing to do"
+            exit 0
+          fi
+          title="chore(upstream): sync upstream/main ($BEHIND commits)"
+          {
+            echo "## Upstream sync (automated) — $BEHIND commits behind"
+            echo
+            echo "\`origin/main\` has no own commits, so this PR is a fast-forward: bringing $BEHIND upstream commits in."
+            echo
+            echo "### Upstream commit list"
+            echo
+            echo '```'
+            git log --no-merges origin/main..upstream/main --oneline || true
+            echo '```'
+            echo
+            echo "### Regras da casa (não pular)"
+            echo
+            echo "1. Ler o delta ANTES de mergear: pontos que tocamos — \`payment-dialog\`, locales, bump \`@medusajs/*\` (re-verificar no arame contra o backend de homologação store-b2c), scripts/lockfiles."
+            echo "2. Nunca merge automático. Merge manual do dono."
+            echo "3. Depois do merge: rebase dos PRs abertos (merge-tree dry-run, preservar dois intentos, regenerar yarn.lock), bateria ci:local completa + adversarial antes de re-push."
+          } > body.md
+          gh pr create --base main --head "$BRANCH" \
+            --title "$title" --body-file body.md
