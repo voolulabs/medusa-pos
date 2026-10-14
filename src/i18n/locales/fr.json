@@ -262,7 +262,10 @@
     "sale_outstanding": "Remis — paiement en attente",
     "new_sale": "Nouvelle vente",
     "new_sale_hint": "Scanner l'article suivant lance aussi une nouvelle vente.",
-    "quick_keys_label": "Touches rapides"
+    "quick_keys_label": "Touches rapides",
+    "terminal_waiting": "En attente du terminal de paiement — demandez au client de finaliser le paiement sur le terminal.",
+    "terminal_declined": "Paiement refusé sur le terminal{{reason}}.",
+    "terminal_timeout": "Le terminal n'a pas encore confirmé le paiement — la commande reste en attente. Si le terminal la traite plus tard, elle se mettra à jour automatiquement ; vous pouvez aussi encaisser plus tard depuis Commandes."
   },
   "orders": {
     "search_placeholder": "Rechercher des commandes...",
