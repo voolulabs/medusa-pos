@@ -1,0 +1,25 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "entry": [
+    "index.html"
+  ],
+  "project": [
+    "src/**/*.{ts,tsx}",
+    "tests/**/*.{ts,tsx}"
+  ],
+  "ignore": [
+    "src/components/ui/**",
+    "src/hooks/queries/**",
+    "src/utils/helpers/index.ts",
+    "src/utils/settings/preferences/index.ts",
+    "src/utils/pos/receipt/printer-encoding.ts",
+    "src/components/ui/numpad.tsx",
+    "src/types/utils.ts",
+    "src/utils/pos/receipt/index.ts",
+    "src/utils/storage/index.ts"
+  ],
+  "tags": [
+    "-lintignore"
+  ],
+  "ignoreExportsUsedInFile": true
+}
