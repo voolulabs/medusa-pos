@@ -21,6 +21,7 @@ require_cli adlc "@adlc/cli@1.11.1 (npm i -g --ignore-scripts)"
 
 SKIPS=()
 STAGES_OK=0
+: "${TMPDIR:=/tmp}"
 run_stage() {
   local name="$1"; shift
   printf '\n==> [%s]\n' "$name"
@@ -32,9 +33,8 @@ run_stage() {
 }
 
 stage_tree() {
-  # Os 3 dirty pré-existentes do dono (release.yml, .gitignore, src-tauri/yyyy) e
-  # untracked de processo (.adlc/.codex) não são deste ciclo; o gate do CYCLE é
-  # a bateria dos arquivos que o commit carrega. Flag CI_LOCAL_TREE_STRICT=1
+  # Untracked de processo (.adlc/.codex/.codegraph) não é do ciclo; o gate do
+  # CYCLE são os arquivos que o commit carrega. Flag CI_LOCAL_TREE_STRICT=1
   # para exigir a árvore 100% limpa (padrão do plugin).
   if [ -n "$(git status --porcelain -- src tests package.json yarn.lock scripts knip.json)" ] ; then
     echo "árvore do ciclo suja (src/tests/config) — commit antes." >&2
@@ -153,7 +153,7 @@ run_stage "5 typecheck (tsc --noEmit)" bash -c 'yarn typecheck'
 run_stage "6 ui rules (gate da upstream; baseline em scripts/ui-rules-baseline.json)" bash -c 'yarn check:ui'
 # shellcheck disable=SC2001,SC2016,SC2086  # intenção o quoting interno do -c
 run_stage "7 knip (gate real; dívida pré-existente catalogada em knip.json ignore)" bash -c 'yarn knip > "$TMPDIR/knip-run.out" 2>&1 || { tail -15 "$TMPDIR/knip-run.out" >&2; exit 1; }'
-SKIPS+=("8 opcore — RODADO na rodada (WSL/linux, binário oficial; sem binário darwin/x64 — UNSUPPORTED_OPCORE_HOST): delta b21 limpo (order-processing refatorado dentro do budget); dívida herdada do app catalogada (~35 achados complexity/lines pré-existentes — fila de refatoração do app; gate ativo na dia que a dívida zerar)")
+SKIPS+=("8 opcore — skip fixo nesta bateria (o binário é alocado ao ciclo do PLUGIN; o delta b21 do app foi refatorado dentro do budget na rodada original): dívida herdada do app catalogada (~35 achados complexity/lines pré-existentes — fila de refatoração do app; gate ativo no dia que a dívida zerar)")
 run_stage "9 adlc (spec-lint + manifest)" stage_adlc
 # shellcheck disable=SC2001,SC2016,SC2086  # intenção o quoting interno do -c
 run_stage "10 npm audit (prod group, zero high/critical)" bash -c 'export count; count=$(yarn audit --groups dependencies --json 2>/dev/null | python3 scripts/audit-high-count.py) || { echo "audit: falha na execução do auditor (infra) — triagem antes de push" >&2; exit 1; }; [ "$count" = "0" ] || { echo "audit: $count high/critical no grupo prod — triagem antes de push (moderate/low abaixo do gate)" >&2; exit 1; }'
