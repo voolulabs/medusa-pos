@@ -1,0 +1,34 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "entry": [
+    "src/main.tsx",
+    "index.html"
+  ],
+  "project": [
+    "src/**/*.{ts,tsx}",
+    "tests/**/*.{ts,tsx}"
+  ],
+  "ignore": [
+    "src/components/ui/**",
+    "integration-tests/**",
+    "src/components/orders/hooks.tsx",
+    "src/components/settings/printer/dialog/hooks.ts",
+    "src/hooks/queries/**",
+    "src/i18n/index.ts",
+    "src/utils/helpers/index.ts",
+    "src/utils/settings/preferences/index.ts",
+    "src/utils/pos/barcode/wedge.ts",
+    "src/utils/pos/draft-order/index.ts",
+    "src/utils/pos/receipt/printer-encoding.ts",
+    "src/context/cart/index.ts",
+    "src/components/ui/numpad.tsx",
+    "src/types/utils.ts",
+    "src/utils/pos/receipt/index.ts",
+    "src/utils/sounds/index.ts",
+    "src/utils/storage/index.ts"
+  ],
+  "tags": [
+    "-lintignore"
+  ],
+  "ignoreExportsUsedInFile": true
+}
