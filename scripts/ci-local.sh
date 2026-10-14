@@ -150,19 +150,20 @@ run_stage "2 lint (eslint)" bash -c 'yarn lint'
 run_stage "3 build (tsc + vite build)" bash -c 'yarn build'
 run_stage "4 testes (vitest)" bash -c 'yarn test'
 run_stage "5 typecheck (tsc --noEmit)" bash -c 'yarn typecheck'
+run_stage "6 ui rules (gate da upstream; baseline em scripts/ui-rules-baseline.json)" bash -c 'yarn check:ui'
 # shellcheck disable=SC2001,SC2016,SC2086  # intenção o quoting interno do -c
-run_stage "6 knip (gate real; dívida pré-existente catalogada em knip.json ignore)" bash -c 'yarn knip > "$TMPDIR/knip-run.out" 2>&1 || { tail -15 "$TMPDIR/knip-run.out" >&2; exit 1; }'
-SKIPS+=("7 opcore — RODADO na rodada (WSL/linux, binário oficial; sem binário darwin/x64 — UNSUPPORTED_OPCORE_HOST): delta b21 limpo (order-processing refatorado dentro do budget); dívida herdada do app catalogada (~35 achados complexity/lines pré-existentes — fila de refatoração do app; gate ativo na dia que a dívida zerar)")
-run_stage "8 adlc (spec-lint + manifest)" stage_adlc
+run_stage "7 knip (gate real; dívida pré-existente catalogada em knip.json ignore)" bash -c 'yarn knip > "$TMPDIR/knip-run.out" 2>&1 || { tail -15 "$TMPDIR/knip-run.out" >&2; exit 1; }'
+SKIPS+=("8 opcore — RODADO na rodada (WSL/linux, binário oficial; sem binário darwin/x64 — UNSUPPORTED_OPCORE_HOST): delta b21 limpo (order-processing refatorado dentro do budget); dívida herdada do app catalogada (~35 achados complexity/lines pré-existentes — fila de refatoração do app; gate ativo na dia que a dívida zerar)")
+run_stage "9 adlc (spec-lint + manifest)" stage_adlc
 # shellcheck disable=SC2001,SC2016,SC2086  # intenção o quoting interno do -c
-run_stage "9 npm audit (prod group, zero high/critical)" bash -c 'export count; count=$(yarn audit --groups dependencies --json 2>/dev/null | python3 scripts/audit-high-count.py) || { echo "audit: falha na execução do auditor (infra) — triagem antes de push" >&2; exit 1; }; [ "$count" = "0" ] || { echo "audit: $count high/critical no grupo prod — triagem antes de push (moderate/low abaixo do gate)" >&2; exit 1; }'
-  
-run_stage "10 gitleaks" stage_gitleaks
-run_stage "11 commitlint (range da branch)" stage_commitlint
-run_stage "12 shellcheck (bash estático)" stage_shellcheck
-run_stage "13 semgrep (SAST: security-audit + secrets)" stage_semgrep
+run_stage "10 npm audit (prod group, zero high/critical)" bash -c 'export count; count=$(yarn audit --groups dependencies --json 2>/dev/null | python3 scripts/audit-high-count.py) || { echo "audit: falha na execução do auditor (infra) — triagem antes de push" >&2; exit 1; }; [ "$count" = "0" ] || { echo "audit: $count high/critical no grupo prod — triagem antes de push (moderate/low abaixo do gate)" >&2; exit 1; }'
 
-printf '\nCI LOCAL (app): %s estágios verdes de 14 (%s skips declarados).\n' "$STAGES_OK" "${#SKIPS[@]}"
+run_stage "11 gitleaks" stage_gitleaks
+run_stage "12 commitlint (range da branch)" stage_commitlint
+run_stage "13 shellcheck (bash estático)" stage_shellcheck
+run_stage "14 semgrep (SAST: security-audit + secrets)" stage_semgrep
+
+printf '\nCI LOCAL (app): %s estágios verdes de 15 (%s skips declarados).\n' "$STAGES_OK" "${#SKIPS[@]}"
 if [ "${#SKIPS[@]}" -gt 0 ]; then
   printf 'SKIP declarado:\n'
   printf '  - %s\n' "${SKIPS[@]}"
