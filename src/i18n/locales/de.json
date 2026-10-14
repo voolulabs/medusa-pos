@@ -262,7 +262,10 @@
     "sale_outstanding": "Übergeben — Zahlung offen",
     "new_sale": "Neuer Verkauf",
     "new_sale_hint": "Das Scannen des nächsten Artikels startet ebenfalls einen neuen Verkauf.",
-    "quick_keys_label": "Schnelltasten"
+    "quick_keys_label": "Schnelltasten",
+    "terminal_waiting": "Warten auf das Zahlungsterminal — der Kunde soll die Zahlung am Terminal abschließen.",
+    "terminal_declined": "Zahlung am Terminal abgelehnt{{reason}}.",
+    "terminal_timeout": "Das Terminal hat die Zahlung noch nicht bestätigt — die Bestellung bleibt offen. Verarbeitet das Terminal sie später, aktualisiert sie sich selbst; Sie können auch später über Bestellungen kassieren."
   },
   "orders": {
     "search_placeholder": "Bestellungen suchen...",

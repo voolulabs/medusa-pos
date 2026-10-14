@@ -14,6 +14,8 @@ interface ConfirmationDialogProps {
   /** Overrides the default explanation, e.g. for a bank transfer. */
   message?: string;
   confirmLabel?: string;
+  /** Live poll hint while the charge sits on the payment terminal. */
+  processingHint?: string | null;
 }
 
 const ConfirmationDialog: React.FC<ConfirmationDialogProps> = ({
@@ -24,11 +26,20 @@ const ConfirmationDialog: React.FC<ConfirmationDialogProps> = ({
   total,
   message,
   confirmLabel,
+  processingHint,
 }) => {
   const { currency } = useCheckout();
   const { t } = useTranslation();
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => !open && onCancel()}>
+    <Dialog
+      open={isOpen}
+      onOpenChange={(open) => {
+        // While the charge poll runs, the decision belongs to the flow — ESC
+        // must not discard the dialog out from under a live payment.
+        if (!open && isProcessing) return;
+        if (!open) onCancel();
+      }}
+    >
       <DialogContent className="max-w-md">
         <DialogTitle className="text-2xl font-semibold text-fg text-center">
           {t("checkout.confirm_payment_title")}
@@ -38,6 +49,11 @@ const ConfirmationDialog: React.FC<ConfirmationDialogProps> = ({
           <p className="text-lg text-fg-muted text-center">
             {message ?? t("checkout.confirm_payment_message")}
           </p>
+          {processingHint && (
+            <p className="text-sm text-warning-text text-center font-medium">
+              {processingHint}
+            </p>
+          )}
 
           <div className="bg-surface-muted border border-theme-border rounded-lg p-4">
             <p className="text-center text-fg-muted font-medium">

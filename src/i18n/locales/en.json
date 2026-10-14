@@ -262,7 +262,10 @@
     "sale_outstanding": "Delivered — payment outstanding",
     "new_sale": "New sale",
     "new_sale_hint": "Scanning the next item also starts a new sale.",
-    "quick_keys_label": "Quick keys"
+    "quick_keys_label": "Quick keys",
+    "terminal_waiting": "Waiting for the payment terminal — ask the customer to complete the payment on the terminal.",
+    "terminal_declined": "Terminal payment declined{{reason}}.",
+    "terminal_timeout": "The terminal has not confirmed the payment yet — the order stays pending. If the terminal completes it, the order updates on its own; you can also charge later from Orders."
   },
   "orders": {
     "search_placeholder": "Search orders...",
