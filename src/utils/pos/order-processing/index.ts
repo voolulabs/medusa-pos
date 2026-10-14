@@ -6,7 +6,7 @@ import { toNumber } from "@/utils/pos/pricing";
 import {
   findTerminalChargeId,
   pollTerminalCharge,
-  TerminalChargeView,
+  type TerminalChargeView,
   TerminalPaymentDeclinedError,
 } from "@/utils/pos/order-processing/terminal-poll";
 
@@ -65,13 +65,6 @@ function collectionHasSettledMoney(collection: CollectionWithMoney): boolean {
 }
 
 /**
- * Pays one payment collection with the chosen provider: opens a session, then
- * captures the pending payment, falling back to markAsPaid when the provider
- * does not auto-authorize.
- */
-
-
-/**
  * B2.1 poll seam extracted from settleCollection (complexity budget): if the
  * freshly-created payment session carries the plugin's charge_id, watch the
  * charge route until a terminal state — paid follows the normal finalize;
@@ -85,7 +78,7 @@ async function ensureTerminalCharge(
   opts?: { onPollUpdate?: (view: TerminalChargeView) => void }
 ): Promise<void> {
   const sessions = updatedCollection.payment_sessions ?? [];
-  const activeSession = sessions.length ? sessions[sessions.length - 1] : sessions[0];
+  const activeSession = sessions[sessions.length - 1];
   const terminalChargeId = findTerminalChargeId(activeSession);
   if (!terminalChargeId) return;
   try {

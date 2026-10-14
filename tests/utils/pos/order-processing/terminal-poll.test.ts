@@ -112,24 +112,31 @@ describe("pollTerminalCharge", () => {
     expect(err).not.toBeInstanceOf(TerminalPaymentDeclinedError);
   });
 
-  it("sleep nunca estoura o teto da janela", () => {
+  it("sleep nunca estoura o teto da janela", async () => {
     const sleeps: number[] = [];
-    const sleep = (ms: number) => {
-      sleeps.push(ms);
-      return Promise.resolve();
-    };
-    return pollTerminalCharge({
-      chargeId: "chg-1",
-      getCharge: () => Promise.resolve<TerminalChargeView>({ state: "pending" }),
-      sleep,
-      typicalSeconds: 1,
-      maxSeconds: 2,
-    }).then(
-      () => expect.unreachable("devia dar timeout"),
-      () => {
-        expect(sleeps.every((ms) => ms <= 2000)).toBe(true);
-      }
-    );
+    // Relógio controlado: cada sleep avança o Date.now no tempo declarado —
+    // nada de relógio real (o loop de microtasks era lento no CPU de CI).
+    let now = 0;
+    const realDateNow = Date.now;
+    Date.now = () => now;
+    try {
+      await pollTerminalCharge({
+        chargeId: "chg-1",
+        getCharge: () => Promise.resolve<TerminalChargeView>({ state: "pending" }),
+        sleep: (ms) => {
+          sleeps.push(ms);
+          now += ms;
+          return Promise.resolve();
+        },
+        typicalSeconds: 1,
+        maxSeconds: 2,
+      });
+      expect.unreachable("devia dar timeout");
+    } catch {
+      expect(sleeps.every((ms) => ms <= 2000)).toBe(true);
+    } finally {
+      Date.now = realDateNow;
+    }
   });
 });
 
