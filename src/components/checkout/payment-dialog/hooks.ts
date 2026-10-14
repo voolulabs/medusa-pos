@@ -13,6 +13,11 @@ import { AdminOrder, AdminDraftOrder } from "@medusajs/types";
 import { useCartStore } from "@/context/cart";
 import { useRegister } from "@/context/register";
 import { PaymentMethod } from "@/types/utils";
+import {
+  TerminalChargeTimeoutError,
+  TerminalPaymentDeclinedError,
+  type TerminalChargeView,
+} from "@/utils/pos/order-processing/terminal-poll";
 import { useCheckout } from "../hooks";
 import { useQueryStore } from "@/hooks/queries/useQueryStore";
 import { useOrderProcessing } from "@/hooks/order/useOrderProcessing";
@@ -239,6 +244,8 @@ const usePaymentModal = (
   const [isProcessing, setIsProcessing] = useState(false);
   // Single-flight guard: a ref (not state) so a double-tap can't convert the draft twice.
   const submissionRef = useRef(false);
+  // Live terminal-charge state while the poll runs ("confira a maquininha").
+  const [terminalStatus, setTerminalStatus] = useState<TerminalChargeView | null>(null);
   const [showConfirmation, setShowConfirmation] = useState(false);
   // The finished sale the dialog shows until "New sale"; the ref carries it out of the
   // async flow, which also returns an order for an unpaid fallback that just closes.
@@ -296,6 +303,18 @@ const usePaymentModal = (
     quickAmounts,
   } = useCashPayment(cashTotal, isCashType);
   const { processPaymentCollection, processFulfillment } = useOrderProcessing();
+
+  // Terminal poll hint: awaiting_terminal/action_required mean the customer is
+  // mid-tap on the terminal — the dialog says so instead of spinning silently.
+  const onPollUpdate = useCallback((view: TerminalChargeView) => {
+    setTerminalStatus(view);
+  }, []);
+  const terminalHint =
+    terminalStatus &&
+    (terminalStatus.state === "awaiting_terminal" ||
+      terminalStatus.state === "action_required")
+      ? t("checkout.terminal_waiting")
+      : null;
 
   // Fire-and-forget: print receipt + open cash drawer after order succeeds.
   // Runs independently so it never blocks the modal from closing.
@@ -457,8 +476,11 @@ const usePaymentModal = (
 
         // Step 4: Process payment collection
         let finalOrder = order;
+        setTerminalStatus(null);
         try {
-          await processPaymentCollection(order, selectedPaymentMethod);
+          await processPaymentCollection(order, selectedPaymentMethod, {
+            onPollUpdate,
+          });
         } catch (paymentError) {
           // Surface the real backend error so capture failures are diagnosable.
           void logger.error(`processPaymentCollection failed: ${safeStringify(paymentError)}`);
@@ -498,8 +520,20 @@ const usePaymentModal = (
             void queryClient.invalidateQueries({ queryKey: queryKeys.orders.all });
             void queryClient.invalidateQueries({ queryKey: queryKeys.draftOrders.all });
             playSound("error");
+            // Typed terminal outcomes get their own actionable copy on top of
+            // the generic unpaid warning (decline shows the plugin's reason).
+            const terminalDetail =
+              paymentError instanceof TerminalPaymentDeclinedError
+                ? t("checkout.terminal_declined", {
+                    reason: paymentError.reasonCode ? ` (${paymentError.reasonCode})` : "",
+                  })
+                : paymentError instanceof TerminalChargeTimeoutError
+                  ? t("checkout.terminal_timeout")
+                  : null;
+            setTerminalStatus(null);
             toast.warning(
-              t("checkout.order_saved_unpaid", { displayId: order.display_id })
+              t("checkout.order_saved_unpaid", { displayId: order.display_id }),
+              terminalDetail ? { description: terminalDetail } : undefined
             );
             return order;
           }
@@ -533,6 +567,7 @@ const usePaymentModal = (
       } catch (error) {
         playSound("error");
         setFrozenDraft(null);
+        setTerminalStatus(null);
         handleErrorToast(
           error instanceof Error ? error.message : "Failed to create order. Please try again."
         );
@@ -565,6 +600,7 @@ const usePaymentModal = (
       setPaymentMethod,
       setDraftOrderId,
       registerSessionId,
+      onPollUpdate,
       onClose,
     ]);
 
@@ -666,6 +702,7 @@ const usePaymentModal = (
   const handleClose = useCallback(() => {
     resetCashState();
     setFrozenDraft(null);
+    setTerminalStatus(null);
     setShowConfirmation(false);
     setShowPayLaterConfirmation(false);
     setCompleted(null);
@@ -757,6 +794,7 @@ const usePaymentModal = (
     isCashPayment: isCashType,
     isBankTransfer: methodType === "bank_transfer",
     hasBankDetails: getBankDetails(store) !== undefined,
+    terminalHint,
 
     // Functions
     handleCashValueChange,

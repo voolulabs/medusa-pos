@@ -57,6 +57,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
     isCashPayment,
     isBankTransfer,
     hasBankDetails,
+    terminalHint,
     draftOrder,
     billCounts,
     completed,
@@ -485,6 +486,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
         total={total}
         message={isBankTransfer ? t("checkout.confirm_transfer_message") : undefined}
         confirmLabel={isBankTransfer ? t("checkout.transfer_received_button") : undefined}
+        processingHint={terminalHint}
       />
 
       {/* Pay-later Confirmation Dialog */}

@@ -262,7 +262,10 @@
     "sale_outstanding": "Entregado — pago pendiente",
     "new_sale": "Nueva venta",
     "new_sale_hint": "Escanear el siguiente artículo también inicia una nueva venta.",
-    "quick_keys_label": "Teclas rápidas"
+    "quick_keys_label": "Teclas rápidas",
+    "terminal_waiting": "Esperando al terminal de pago — pida al cliente completar el pago en la máquina.",
+    "terminal_declined": "Pago rechazado en el terminal{{reason}}.",
+    "terminal_timeout": "El terminal aún no confirmó el pago — el pedido queda pendiente. Si el terminal lo procesa después, el pedido se actualiza solo; también puede cobrarlo más tarde desde Pedidos."
   },
   "orders": {
     "search_placeholder": "Buscar pedidos...",

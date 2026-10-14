@@ -262,7 +262,10 @@
     "sale_outstanding": "Utlämnad — betalning utestående",
     "new_sale": "Ny försäljning",
     "new_sale_hint": "Att skanna nästa vara startar också en ny försäljning.",
-    "quick_keys_label": "Snabbknappar"
+    "quick_keys_label": "Snabbknappar",
+    "terminal_waiting": "Väntar på betalterminalen — be kunden slutföra betalningen på terminalen.",
+    "terminal_declined": "Betalning avvisad i terminalen{{reason}}.",
+    "terminal_timeout": "Terminalen har inte bekräftat betalningen ännu — ordern förblir väntande. Om terminalen bearbetar den senare uppdateras ordern automatiskt; du kan också ta betalt senare via Ordrar."
   },
   "orders": {
     "search_placeholder": "Sök order...",

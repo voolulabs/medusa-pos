@@ -262,7 +262,10 @@
     "sale_outstanding": "Wydano — płatność oczekuje",
     "new_sale": "Nowa sprzedaż",
     "new_sale_hint": "Zeskanowanie kolejnego produktu również rozpoczyna nową sprzedaż.",
-    "quick_keys_label": "Szybkie przyciski"
+    "quick_keys_label": "Szybkie przyciski",
+    "terminal_waiting": "Oczekiwanie na terminal płatniczy — poproś klienta o dokończenie płatności na terminalu.",
+    "terminal_declined": "Płatność odrzucona na terminalu{{reason}}.",
+    "terminal_timeout": "Terminal jeszcze nie potwierdził płatności — zamówienie pozostaje oczekujące. Jeśli terminal przetworzy je później, zamówienie zaktualizuje się samo; możesz też pobrać płatność później z Zamówień."
   },
   "orders": {
     "search_placeholder": "Szukaj zamówień...",

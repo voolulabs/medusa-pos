@@ -3,6 +3,12 @@ import { getSdk } from "@/config/medusa";
 import { logger, safeStringify } from "@/utils/logger";
 import storage from "@/utils/storage";
 import { toNumber } from "@/utils/pos/pricing";
+import {
+  findTerminalChargeId,
+  pollTerminalCharge,
+  TerminalChargeView,
+  TerminalPaymentDeclinedError,
+} from "@/utils/pos/order-processing/terminal-poll";
 
 /**
  * Ensures the order's payment is captured. Reuses an existing payment
@@ -12,7 +18,8 @@ import { toNumber } from "@/utils/pos/pricing";
  */
 async function processPaymentCollection(
   order: AdminOrder,
-  providerId: string
+  providerId: string,
+  opts?: { onPollUpdate?: (view: TerminalChargeView) => void }
 ): Promise<void> {
   const sdk = getSdk();
 
@@ -36,7 +43,25 @@ async function processPaymentCollection(
     collectionId = payment_collection.id;
   }
 
-  await settleCollection(order.id, collectionId, providerId);
+  await settleCollection(order.id, collectionId, providerId, opts);
+}
+
+const POS_PAYMENTS_CHARGES_ROUTE = "/admin/pos-payments/charges/";
+
+type CollectionWithMoney = {
+  payments?: { captured_at?: unknown }[] | undefined;
+  payment_sessions?: { status?: string }[] | undefined;
+};
+
+/** True when the collection already holds money (row captured) or an
+ * authorized session — never delete such a collection on a decline. */
+function collectionHasSettledMoney(collection: CollectionWithMoney): boolean {
+  return (
+    (collection.payments?.some((p) => !!p.captured_at) ?? false) ||
+    (collection.payment_sessions?.some(
+      (s) => s.status === "authorized" || s.status === "captured"
+    ) ?? false)
+  );
 }
 
 /**
@@ -44,10 +69,63 @@ async function processPaymentCollection(
  * captures the pending payment, falling back to markAsPaid when the provider
  * does not auto-authorize.
  */
+
+
+/**
+ * B2.1 poll seam extracted from settleCollection (complexity budget): if the
+ * freshly-created payment session carries the plugin's charge_id, watch the
+ * charge route until a terminal state — paid follows the normal finalize;
+ * terminal-reject throws typed (optionally cleaning the pending collection);
+ * timeout raises TerminalChargeTimeoutError and leaves everything intact.
+ */
+async function ensureTerminalCharge(
+  sdk: ReturnType<typeof getSdk>,
+  updatedCollection: { payment_sessions?: { status?: string; data?: unknown }[]; payments?: { captured_at?: unknown }[] },
+  collectionId: string,
+  opts?: { onPollUpdate?: (view: TerminalChargeView) => void }
+): Promise<void> {
+  const sessions = updatedCollection.payment_sessions ?? [];
+  const activeSession = sessions.length ? sessions[sessions.length - 1] : sessions[0];
+  const terminalChargeId = findTerminalChargeId(activeSession);
+  if (!terminalChargeId) return;
+  try {
+    await pollTerminalCharge({
+      chargeId: terminalChargeId,
+      getCharge: (chargeId) =>
+        sdk.client.fetch(
+          `${POS_PAYMENTS_CHARGES_ROUTE}${encodeURIComponent(chargeId)}`
+        ) as Promise<TerminalChargeView>,
+      onUpdate: opts?.onPollUpdate,
+    });
+    return;
+  } catch (pollError) {
+    // Only the spec's redo-able failures clean the collection (failed|
+    // expired|canceled). refunded means money moved in the window-40s — the
+    // stale from-create snapshot may not know it: leave the collection intact
+    // and let the operator handle it from Orders.
+    const deletableState =
+      pollError instanceof TerminalPaymentDeclinedError &&
+      (pollError.state === "failed" ||
+        pollError.state === "expired" ||
+        pollError.state === "canceled");
+    if (deletableState && !collectionHasSettledMoney(updatedCollection)) {
+      try {
+        await sdk.admin.paymentCollection.delete(collectionId);
+      } catch (deleteError) {
+        void logger.error(
+          `Failed to remove terminal-declined collection ${collectionId}: ${safeStringify(deleteError)}`
+        );
+      }
+    }
+    throw pollError;
+  }
+}
+
 async function settleCollection(
   orderId: string,
   collectionId: string,
-  providerId: string
+  providerId: string,
+  opts?: { onPollUpdate?: (view: TerminalChargeView) => void }
 ): Promise<void> {
   const sdk = getSdk();
 
@@ -64,6 +142,10 @@ async function settleCollection(
   if (alreadyCaptured) {
     return;
   }
+
+  // Terminal-poll seam (B2.1, spec .adlc/specs b21): see ensureTerminalCharge —
+  // keeps settleCollection inside the complexity budget.
+  await ensureTerminalCharge(sdk, updatedCollection, collectionId, opts);
 
   const pendingPayment = updatedCollection.payments?.find(
     (p) => !p.captured_at
@@ -254,4 +336,5 @@ export {
   settleOutstanding,
   findOutstandingCollection,
   findOpenCollection,
+  collectionHasSettledMoney,
 };
